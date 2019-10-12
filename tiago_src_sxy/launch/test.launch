@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <arg name="global_planner" default="global_planner"/>
+  <arg name="local_planner"  default="eband"/>
+
+  <arg name="odom"    default="mobile_base_controller/odom"/>
+  <arg name="cmd_vel" default="nav_vel"/>
+
+  <arg name="debug_rgbd" default="false"/>
+  <arg name="debug"      default="false"/>
+
+  <arg name="launch_prefix" value="gdb -ex run --args"     if="$(arg debug)"/>
+  <arg name="launch_prefix" value=""                   unless="$(arg debug)"/>
+
+  <arg name="config_base_path" default="$(find tiago_2dnav)"/>
+
+  <arg name="public_sim"   default="false"/>
+
+  <arg name="sim_sufix" value="_public_sim"     if="$(arg public_sim)"/>
+  <arg name="sim_sufix" value=""                unless="$(arg public_sim)"/>
+
+  <arg name="multiple" default="false"/>
+  <arg name="tf_prefix" default=""/>
+
+  <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
+    <remap from="cloud_in" to="/xtion/depth/points"/>
+    <remap from="scan" to="rgbd_scan"/>
+    <rosparam>
+      target_frame: base_laser_link
+      transform_tolerance: 0.01
+      min_height: 0.1
+      max_height: 2.0
+      angle_min: !degrees -30.0
+      angle_max: !degrees  30.0
+      angle_increment: !degrees  0.3333
+      scan_time: 0.07
+      range_min: 0.6
+      range_max: 8.0
+      use_inf: true
+      # Concurrency level, affects number of pointclouds queued for processing and number of threads used
+      # 0 : Detect number of cores
+      # 1 : Single threaded
+      # 2->inf : Parallelism level
+      use_concurrency: 2
+    </rosparam>
+  </node>
+
+  <node pkg="move_base" type="move_base" name="move_base" clear_params="true" output="screen" respawn="true" launch-prefix="$(arg launch_prefix)">
+    <remap from="odom"    to="$(arg odom)"/>
+    <remap from="cmd_vel" to="$(arg cmd_vel)"/>
+
+    <rosparam command="load" file="$(arg config_base_path)/config/base/common/move_base_111.yaml"/>
+    <rosparam command="load" file="$(arg config_base_path)/config/base/common/recovery_behaviors_111.yaml"/>
+
+    <rosparam command="load" file="$(arg config_base_path)/config/base/common/global_costmap$(arg sim_sufix)_111.yaml"/>
+    <rosparam command="load" file="$(arg config_base_path)/config/base/common/local_costmap$(arg sim_sufix)_111.yaml"/>
+
+    <rosparam command="load" file="$(arg config_base_path)/config/base/global_planner/$(arg global_planner).yaml"/>
+
+    <rosparam command="load" file="$(arg config_base_path)/config/base/$(arg local_planner)/move_base.yaml"/>
+    <rosparam command="load" file="$(arg config_base_path)/config/base/$(arg local_planner)/local_planner.yaml"/>
+
+    <param if="$(arg multiple)" name="global_costmap/global_frame" value="$(arg tf_prefix)/map"/>
+    <param if="$(arg multiple)" name="global_costmap/robot_base_frame" value="$(arg tf_prefix)/base_footprint"/>
+    <param if="$(arg multiple)" name="global_costmap/obstacle_laser_layer/base_scan/sensor_frame" value="$(arg tf_prefix)/base_laser_link"/>
+    <param if="$(arg multiple)" name="global_costmap/obstacle_rgbd_layer/rgbd_scan/sensor_frame" value="$(arg tf_prefix)/base_footprint"/>
+    <param if="$(arg multiple)" name="local_costmap/global_frame" value="$(arg tf_prefix)/odom"/>
+    <param if="$(arg multiple)" name="local_costmap/robot_base_frame" value="$(arg tf_prefix)/base_footprint"/>
+    <param if="$(arg multiple)" name="local_costmap/obstacle_laser_layer/base_scan/sensor_frame" value="$(arg tf_prefix)/base_laser_link"/>
+    <param if="$(arg multiple)" name="local_costmap/obstacle_rgbd_layer/rgbd_scan/sensor_frame" value="$(arg tf_prefix)/base_footprint"/>
+    <param if="$(arg multiple)" name="local_costmap/obstacle_sonar_layer/sonar_cloud/sensor_frame" value="$(arg tf_prefix)/sonar_cloud"/>
+    <param if="$(arg multiple)" name="local_costmap/obstacle_sonar_layer/sonar_max_range_cloud/sensor_frame" value="$(arg tf_prefix)/base_link"/>
+
+  </node>
+
+  <group if="$(arg debug_rgbd)">
+    <node pkg="costmap_2d" type="costmap_2d_markers" name="costmap_2d_markers_global">
+      <remap from="voxel_grid" to="move_base/global_costmap/obstacle_rgbd_layer/voxel_grid"/>
+      <remap from="visualization_marker" to="voxel_grid_global_marker"/>
+    </node>
+
+    <node pkg="costmap_2d" type="costmap_2d_markers" name="costmap_2d_markers_local">
+      <remap from="voxel_grid" to="move_base/local_costmap/obstacle_rgbd_layer/voxel_grid"/>
+      <remap from="visualization_marker" to="voxel_grid_local_marker"/>
+    </node>
+  </group>
+
+</launch>

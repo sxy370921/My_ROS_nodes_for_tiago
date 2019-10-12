@@ -1,0 +1,21 @@
+
+<launch>
+
+  <!-- Run the depthimage_to_laserscan node -->
+  <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan_sxy" output="screen">
+    <!--输入图像-->
+     <remap from="image" to="/xtion/depth_registered/image_raw"/>
+    <!--输出激光数据的话题-->
+    <remap from="scan" to="/scan_shao" />
+    <!--用于生成激光扫描的像素行数。对于每一列，扫描将返回在图像中垂直居中的那些像素的最小值。-->
+    <param name="scan_height" value="1"/>
+    <!--扫描之间的时间（秒）。 通常情况下，1.0 / frae_rate。 这个值不容易从连续的消息中计算出来，因此留给用户正确设置。   -->
+　　　　<param name="scan_time" value="0.3333"/>
+    <!--返回的最小范围（以米为单位）。小于该范围的输出将作为-Inf输出。-->
+    <param name="range_min" value="0.1"/>
+    <!--返回的最大范围（以米为单位）。大于此范围将输出为+ Inf。-->
+    <param name="range_max" value="8.00"/>
+    <param name="output_frame_id" value="base_laser_link"/>
+  </node>
+
+</launch>
